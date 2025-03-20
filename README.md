@@ -1,3 +1,9 @@
+<style>
+  pre {
+    white-space: pre-wrap;
+  }
+</style>
+
 # LegisMatch
 
 ## Objective
