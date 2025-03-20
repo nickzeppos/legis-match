@@ -1,7 +1,9 @@
 import re
 from typing import List, Literal, Optional, TypedDict, Union
 
-from lxml.etree import _Element as LXMLElement
+
+# TODO: Why is pylint erroring on this import?
+from lxml.etree import _Element as LXMLElement  # pylint: disable=no-name-in-module
 
 
 class ParsingState(TypedDict):
