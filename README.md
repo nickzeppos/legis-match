@@ -173,8 +173,7 @@ TODO
 
 ## Notes
 
-[^1]: You can read more about the XML schema at [xml.house.gov](https://xml.house.gov/).
-[^2]: One of the goals of the project is to be able to iteratively define simlarity in two directions: (1) on the functional side, i.e., different similarity metrics and weights, and (2) on the data side, to manipulate combinations of inputs.
-[^3]:
-    Why have a chosen a section, as opposed higher (title) or lower (paragraph) level of granularity? The answer is that it's an arbitrary decision, so I want to flag it as such! Sections are the unit of analysis I'm comitting to, but am totally open to rethinking this decision.  
-    [^4] Can be sped using LSH indexing, but that's a method to grapple with scale, so will remain a TODO during prototyping.
+[^1]: You can read more about the XML schema at [xml.house.gov](https://xml.house.gov/).  
+[^2]: One of the goals of the project is to be able to iteratively define simlarity in two directions: (1) on the functional side, i.e., different similarity metrics and weights, and (2) on the data side, to manipulate combinations of inputs.  
+[^3]: Why have a chosen a section, as opposed higher (title) or lower (paragraph) level of granularity? The answer is that it's an arbitrary decision, so I want to flag it as such! Sections are the unit of analysis I'm comitting to, but am totally open to rethinking this decision.  
+[^4] Can be sped using LSH indexing, but that's a method to grapple with scale, so will remain a TODO during prototyping.  
