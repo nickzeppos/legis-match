@@ -108,7 +108,9 @@ interface ParsedSection {
       // type === "EXTERNAL_XREF" ? => parsable_cite: string;
       // type === "ENTITY" ? => expanded_form: string;
       // type === "QUOTE" ? => amendatory_op: 'strike' | 'insert'
-      // type === "QUOTED-BLOCK" ? => amendatory_op: 'strike' | 'insert'
+      // type === "QUOTE" ? => parsable_xref: string;
+      // type === "QUOTED_BLOCK" ? => amendatory_op: 'strike' | 'insert'
+      // type === "QUOTE_BLOCK" ? => parsable_xref: string;
     }
   ];
   output: string;
