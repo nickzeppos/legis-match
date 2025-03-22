@@ -110,7 +110,7 @@ interface ParsedSection {
       // type === "QUOTE" ? => amendatory_op: 'strike' | 'insert'
       // type === "QUOTE" ? => parsable_xref: string;
       // type === "QUOTED_BLOCK" ? => amendatory_op: 'strike' | 'insert'
-      // type === "QUOTE_BLOCK" ? => parsable_xref: string;
+      // type === "QUOTED_BLOCK" ? => parsable_xref: string;
     }
   ];
   output: string;
