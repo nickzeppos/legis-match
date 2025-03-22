@@ -1,22 +1,40 @@
 # LegisMatch
 
+## TOC
+
+- [Objective](#objective)
+- [Overview, briefly and non-ish technical](#overview-briefly-and-non-ish-technical)
+- [Overview, involved and more technical](#overview-involved-and-more-technical)
+  - [Parsing and Normalization](#parsing-and-normalization)
+    - [XML](#xml)
+    - [Text](#text)
+  - [Encoding and Candidate Selection](#encoding-and-candidate-selection)
+  - [Alignment Detection + Recovery](#alignment-detection--recovery)
+  - [Rendering](#rendering)
+- [Misc. type defs](#misc-type-defs)
+- [Notes](#notes)
+
 ## Objective
 
 **LegisMatch** is, in general, an attempt to transform partially structured legislative text (XML)[^1] into a format more convenient for analysis, especially analysis concerned with similarity between provisions found in different bills.
 
-More precisely, you could think of it like this: Given a desired target bill _B_, containing section _S_, we want to find candidate sections _S'1_, _S'2_, ... across some universe of candidate bills _C_ that are similar to _S_. What similar means specifically is a bit unimportant right now, so just hold the general idea in your mind. [^2]
+More precisely, you could think of it like this: Given a desired target bill _B_, containing section _S_, we want to find candidate sections _S'1_, _S'2_, ... across some universe of candidate bills _C_ that are similar to _S_. What similar means specifically is a bit unimportant right now, so just hold the general idea. [^2]
 
 ## Overview, briefly and non-ish technical
 
-Bill text comes in as xml. Section-by-section, it passes through a series of transformations to produce a meaningful structured representation.[^3] Normalized text properties from that output (header and body) are used to generate lookup keys for the section, which are stored alongside the full payload in a DB.
+Bill text comes in as xml. Section-by-section, it passes through a series of transformations to produce a meaningful, structured representation.[^3] Normalized text properties from that output (header and body) are used to generate lookup keys for the section, which are stored alongside the rest of the parsed data.
 
-When a user selects a candidate section, the system performs a two-step process: (1) it retreives _n_ candidates based on similarity computed on the lookup keys, and (2) it computes sequence based similarity between the target and each candidate section.
+Now that the parsed data is in the DB, we can compute section-level simlarity scores. Given a target section, we perform a two-step process: (1) retrieve _n_ candidates based on similarity computed jointly on the lookup keys, and (2) compute shared alignments between target and candidate sections.
+
+The alignment procedure produces two things: (1) a similarity score, which is used to rank the candidates during the rendering phase, and (2) positional metadata that is used to recover the overlapping regions between the candidate and target sections in their original forms. Both are stored in the DB, sharing a link between target and candidate.
 
 ## Overview, involved and more technical
 
 ### Parsing and Normalization
 
-As our starting piont, let's take a look at a section of a bill.[^4] Here's an example, in plain text:
+#### XML
+
+As our starting point, let's take a look at a section of a bill.[^4] Here's an example, in plain text:
 
 ```text
 2. Establishment of an ASEAN Center
@@ -48,14 +66,12 @@ What does that look like in XML?
                     <enum>(1)</enum>
                     <text>provide grants for research to support and elevate the importance of the US-ASEAN partnership;</text>
                 </paragraph>
+            </subsection>
             <subsection>
                 <enum>(c)</enum>
                 <header>Authority</header>
-                <text>This section may be carried out using any amounts authorized to be
-                    appropriated to the Secretary of State, including amounts authorized to carry
-                    out chapter 4 of part II of the Foreign Assistance Act of 1961 (<external-xref legal-doc="usc" parsable-cite="usc/22/2346">22 U.S.C. 2346 et seq.<external-xref>).</text>
+                <text>This section may be carried out using any amounts authorized to be appropriated to the Secretary of State, including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961(<external-xref legal-doc="usc" parsable-cite="usc/22/2346">22 U.S.C. 2346 et seq.<external-xref>).</text>
             </subsection>
-
         </section>
 ```
 
@@ -63,57 +79,39 @@ The XML provides some meaningful structural data, so let's walk through it quick
 
 Currently we have special rules for handling the following XML nodes: enum, header, external-xref, quote. In general, these nodes go through one of two procedures: (1) a masking procedure, where the content of the node is replaced with a special token, or (2) a tagging procedure, where the content of the node is wrapped in between a pair of special tokens, denoting begginning and end.
 
-Data representing the masking and tagging procedures is maintained moving forward, making the process reversible. Finally, the header and the text resulting from the masking and tagging procedure go through a normalization process. All of the fields pass forward in a single JSON object. A rough type definition is as follows:
+Data representing the masking and tagging procedures is maintained moving forward, making the process reversible. Finally, the header and the text resulting from the masking and tagging procedure go through a normalization process. All of the fields pass forward in a single JSON object.
+
+A rough type definition is as follows:
 
 ```ts
 interface ParsedSection {
-  // id attribute for the parent section node
   section_id: string;
-  // section number in full bill, provided by the first enum node encountered
   section_number: number;
-  // section header
   header: string;
-  // section header, normalized
   normalized_header: string;
-  // masks applied to the section text
   masks: [
     {
-      // Internal xrefs unimplemented
-      type:
-        | "ENUM"
-        | "INTERNAL_XREF" // TODO
-        | "DEADLINE" // TODO
-        | "DATE"; // TODO
-
+      type: MaskType;
       original_text: string;
+      // Given some mask type, addional props:
+      // type === "DOLLAR_AMOUNT" ? => plain_language_number: string;
+      // type === "INTERNAL_XREF" ? => parsable_cite: string;
     }
   ];
-  // tags applied to the section text
   tags: [
     {
-      type:
-        | "QUOTE"
-        | "EXTERNAL_XREF"
-        | "QUOTED-BLOCK"
-        | "DOLLAR_AMOUNT" // TODO
-        | "KEY_TERM" // TODO
-        | "ENTITY"; // TODO
+      type: TagType;
       enclosed_text: string;
-
-      // type == "QUOTE"
-      associated_amendatory_operation: Optional<"strike" | "insert">;
-
-      // type === "EXTERNAL_XREF"
-      legal_doc: Optional<"usc" | "statute" | "code">;
-      parsable_cite: Optional<string>;
-
-      // type === "KEY_TERM"
-      object_responsible: Optional<string>;
+      // Given some tag type, additional props:
+      // type === "KEY_TERM" ? => object_responsible: string;
+      // type === "EXTERNAL_XREF" ? => legal_doc: LegalDocAttributeType;
+      // type === "EXTERNAL_XREF" ? => parsable_cite: string;
+      // type === "ENTITY" ? => expanded_form: string;
+      // type === "QUOTE" ? => amendatory_op: 'strike' | 'insert'
+      // type === "QUOTED-BLOCK" ? => amendatory_op: 'strike' | 'insert'
     }
   ];
-  // section text, with masks and tags applied
   output: string;
-  // section text, with masks stripped out, tags retained.
   normalized_output: string;
 }
 ```
@@ -129,15 +127,8 @@ The output, given the XML content introduced above, looks like this:
   "masks": [
     { "type": "ENUM", "original_text": "(a)" },
     { "type": "ENUM", "original_text": "(b)" },
-    { "type": "ENUM", "original_text": "(c)" },
     { "type": "ENUM", "original_text": "(1)" },
-    { "type": "ENUM", "original_text": "(2)" },
-    { "type": "ENUM", "original_text": "(3)" },
-    { "type": "ENUM", "original_text": "(4)" },
-    { "type": "ENUM", "original_text": "(5)" },
-    { "type": "ENUM", "original_text": "(6)" },
-    { "type": "ENUM", "original_text": "(d)" },
-    { "type": "ENUM", "original_text": "(e)" }
+    { "type": "ENUM", "original_text": "(c)" }
   ],
   "tags": [
     { "type": "QUOTE", "enclosed_text": "ASEAN" },
@@ -152,6 +143,12 @@ The output, given the XML content introduced above, looks like this:
   "normalized_output": "defined term in this section the term <QUOTE>ASEAN</QUOTE> means the association of southeast asian nations. functions notwithstanding any other provision of law secretary of state and the us-asean center established pursuant to subsection b may— provide grants for research to support and elevate the importance of the us-asean partnership authority this section may be carried out using any amounts authorized to be appropriated to the secretary of state including amounts authorized to carry out chapter 4 of part ii of the foreign assistance act of 1961 <EXTERNAL_XREF>22 U.S.C. 2346 et seq.</EXTERNAL_XREF>."
 }
 ```
+
+#### Text
+
+**TODO**
+
+The general thrust here is that there are meaningful things still in the text that the xml schema does not make explicit. You acn see hints of this in the unimplemented values of the `MaskType` and `TagType` type definitions, in the [types](#types) section. So, we have to try to do whatever additional tagging and masking we want by some other means. In general, I have approached this problem in the past by hand-tagging and training a model. That's sort of what I plan to do for this project, but I think I'm going to do it in a phased way. For now, I'm going to just skip it and see how the outputs look without this additoinal parsing. If we're underperforming or whenver I get to this point of the work, I'll drop-in LLM's functioning as approximate autogregressive classifiers. Then, if that's not working or prohibitevly expensive, or whenever I have the time, I'll actually go train the models.
 
 ### Encoding and Candidate Selection
 
@@ -169,12 +166,53 @@ Alignment scores and positional metadata are persisted, so we don't have to re-c
 
 ### Rendering
 
-TODO
+**TODO**
+
+Our DB now has, for a bill and its sections, a set of high-ranking candidate sections and their pre-computed alignment scores, along with positional metadata to help us render the overlapping regions.
+
+First run of this is just going to be text-based, two columns. Very much just like a document diff tool, with colored highlighting, and the ability to cycle through the candidate sections for a given target section. Only difference is that the underlying diff function is a bit more sophisticated.
+
+I do want to build this out a bit, and the positional data I'm forwarding right now is not super complex. Ideally, I'd like overlapping regions to be highlighted in a way that reflects the chain of computation under the alignment score. I.e., lightening the hue over portions of the aligned region where penalties are introduced, and so on. But that's for later.
+
+### Types
+
+```ts
+type MaskType =
+  | "ENUM"
+  | "INTERNAL_XREF" // TODO
+  | "DOLLAR_AMOUNT" // TODO
+  | "DATE"; // TODO
+type TagType =
+  | "QUOTE"
+  | "EXTERNAL_XREF"
+  | "QUOTED-BLOCK"
+  | "ENTITY" // TODO
+  | "KEY_TERM" // TODO
+  | "DEADLINE"; // TODO
+
+type LegalDocAttributeType =
+  // For us, almost always "usc" | "public-law" | "statute-at-large"
+  | "usc"
+  | "public-law"
+  | "statute-at-large"
+  | "bill"
+  | "act"
+  | "executive-order"
+  | "regulation"
+  | "senate-rule"
+  | "house-rule"
+  | "treaty-ust"
+  | "treaty-tias"
+  | "usc-appendix"
+  | "usc-act"
+  | "usc-chapter"
+  | "usc-subtitle";
+```
 
 ## Notes
 
-[^1]: You can read more about the XML schema at [xml.house.gov](https://xml.house.gov/).  
-[^2]: One of the goals of the project is to be able to iteratively define simlarity in two directions: (1) on the functional side, i.e., different similarity metrics and weights, and (2) on the data side, to manipulate combinations of inputs.  
-[^3]: Why have a chosen a section, as opposed higher (title) or lower (paragraph) level of granularity? The answer is that it's an arbitrary decision, so I want to flag it as such! Sections are the unit of analysis I'm comitting to, but am totally open to rethinking this decision.  
-[^4]:  For the most part, this is one of the places where we're doing a lot of our original thinking, the other being a how we approach local alignment, provided this parsed object. After parsing, a lot of our pre-rendering work uses "off the shelf" solutions (pre-trained BERT embeddings, cosine similarity, LSH, etc.).  
+[^1]: You can read more about the XML schema at [xml.house.gov](https://xml.house.gov/).
+[^2]: One of the goals of the project is to be able to iteratively define simlarity in two directions: (1) on the functional side, i.e., different similarity metrics and weights, and (2) on the data side, to manipulate combinations of inputs.
+[^3]: Why have a chosen a section, as opposed higher (title) or lower (paragraph) level of granularity? The answer is that it's an arbitrary decision, so I want to flag it as such! Sections are the unit of analysis I'm comitting to, but am totally open to rethinking this decision.
+[^4]: For the most part, this is one of the places where we're doing a lot of our original thinking, the other being a how we approach local alignment, provided this parsed object. After parsing, a lot of our pre-rendering work uses "off the shelf" solutions (pre-trained BERT embeddings, cosine similarity, LSH, etc.).
 [^5]: Can be sped using LSH indexing, but that's a method to grapple with scale, so will remain a TODO during prototyping.
