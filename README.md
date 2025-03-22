@@ -77,7 +77,7 @@ What does that look like in XML?
 
 The XML provides some meaningful structural data, so let's walk through it quickly.
 
-Currently we have special rules for handling the following XML nodes: enum, header, external-xref, quote. In general, these nodes go through one of two procedures: (1) a masking procedure, where the content of the node is replaced with a special token, or (2) a tagging procedure, where the content of the node is wrapped in between a pair of special tokens, denoting begginning and end.
+Currently we have special rules for handling the following XML nodes: enum, header, external-xref, quote, and quoted-block. In general, these nodes go through one of two procedures: (1) a masking procedure, where the content of the node is replaced with a special token, or (2) a tagging procedure, where the content of the node is wrapped in between a pair of special tokens, denoting begginning and end.
 
 Data representing the masking and tagging procedures is maintained moving forward, making the process reversible. Finally, the header and the text resulting from the masking and tagging procedure go through a normalization process. All of the fields pass forward in a single JSON object.
 
