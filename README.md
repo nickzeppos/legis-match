@@ -30,7 +30,7 @@ Recovering relationships between pieces of legsilation in Congress. Like a more 
   6. Store data structure representing the parsed section alongside lookup vectors.
 ### DB Records -> Two-Stage Similarity
   1. Given section _S_, compute cosine similarities with all other sections.
-  2. For each of _n_ highest cosine similarities, compute **local alignment similarity** between sections and headers.
+  2. For each of _n_ highest cosine similarities, compute local alignment similarity between sections and headers.
   3. Store local alignment similarity payloads, linking target section _S_ to related sections _S1_, _S2_, ... _Sn_.
 ### Records -> Rendered Relationships
   1. Given a bill and section of interest.
@@ -70,10 +70,10 @@ We get:
 > MASK_ENUM Functions notwithstanding any other provision of law...
 
 `<EXTERNAL-XREF>` nodes are tagged, meaning instead of
-> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 (22 U.S.C. 2346 et seq.)...
+> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 (22 U.S.C. 2346 et seq.).
   
 We get:
-> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 \<EXTERNAL-XREF\>22 U.S.C. 2346 et seq.\<EXTERNAL-XREF\>...
+> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 \<EXTERNAL-XREF\>22 U.S.C. 2346 et seq.\<EXTERNAL-XREF\>.
 
 In both cases, we preseve a data structure that allows us to (1) reverse any given mask or tagging decision, and (2) compose different masking and tagging pipelines. For the above transformations, it might look something like this:
 
@@ -97,7 +97,9 @@ In both cases, we preseve a data structure that allows us to (1) reverse any giv
 > *Note*: Section is a work in progress.
 > - Setting this to the side for now, but acknowledging that it is a useful exercise, and that I have code written to get us part of the way, in other projects.
 > - For now, I'm just going to see how the outputs look without this step.
-> - If we're underperforming, or whenever I have time, I'll address this in two phases phases: (1) Migrate my old code, drop in LLM's to mimic autogressive classifiers in blind spots. Then, if we're still underperforming, or if things are too expensive, I will actually go train the models to replace the LLM's.
+> - If we're underperforming, or whenever I have time, I'll address this in two phases phases:
+>   1.  Migrate my old code, drop in LLM's to mimic autogressive classifiers in blind spots. 
+>   2. Then, if we're still underperforming, or if things are too expensive, I will actually go train the models to replace the LLM's.
 > 
 After we get all we can out of the XML nodes, we turn to the raw text content of the bill to do some additional masking and tagging. The intuition here is that there is information in the text it would be worthwhile to tag or mask, but the XML schema itself doesn't quite capture it. Here's an example:
 
@@ -143,7 +145,8 @@ With a payload that stores this additional info, and associates the amendatory o
     { "type": "QUOTE", "enclosed_text": "in", "amendment_op": "strike" },
     { "type": "QUOTE", "enclosed_text": "portion of" },
     { "type": "AMENDMENT_OP", "enclosed_text": "striking" },
-    { "type": "QUOTE", 
+    { 
+      "type": "QUOTE", 
       "enclosed_text": "that the Secretary concerned elects to exclude", 
       "amendatory_op": "strike" 
     },
