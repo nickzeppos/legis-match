@@ -2,6 +2,22 @@
 
 Recovering relationships between pieces of legsilation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is recoverable.
 
+## Table of Contents
+- [LegisMatch](#legismatch)
+  - [Table of Contents](#table-of-contents)
+  - [In brief](#in-brief)
+    - [XML -\> DB Records](#xml---db-records)
+    - [DB Records -\> Two-Stage Similarity](#db-records---two-stage-similarity)
+    - [Records -\> Rendered Relationships](#records---rendered-relationships)
+  - [In depth](#in-depth)
+    - [Parsing XML](#parsing-xml)
+    - [Parsing Text](#parsing-text)
+    - [Text Normalization](#text-normalization)
+    - [Computing Lookup Vectors](#computing-lookup-vectors)
+    - [Computing Alignment Scores](#computing-alignment-scores)
+  - [Notes](#notes)
+
+
 ## In brief
 ### XML -> DB Records
   1. Given some parameters, get bill XML.  
