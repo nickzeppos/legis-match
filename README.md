@@ -1,6 +1,6 @@
 # LegisMatch
 
-Recovering relationships between pieces of legsilation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is made clear.
+Recovering relationships between pieces of legislation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is made clear.
 
 ## Table of Contents
 - [LegisMatch](#legismatch)
