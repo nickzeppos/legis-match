@@ -178,10 +178,13 @@ Before proceeding, we need to have normalized views of these two fields. We have
 7. Tokenize
 
 #### Detailed Comparison
-1. Drop mask special characters
+1. Drop mask special characters, preserve tags.
 2. Push to lowercase
 3. Drop puncutation
 4. Normalize whitespace
+5. Drop stopwords outside tagged regions
+6. Lemmatize outside tagged regions
+7. Tokenize
 
 We store these normalized versions alongside the rest of the payload.
 
