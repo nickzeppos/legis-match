@@ -1,33 +1,35 @@
 # LegisMatch
 
-Recovering relationships between pieces of legsilation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is recoverable.
+Recovering relationships between pieces of legsilation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is made clear.
 
 ## Table of Contents
 - [LegisMatch](#legismatch)
   - [Table of Contents](#table-of-contents)
-  - [In brief](#in-brief)
+  - [Briefly](#briefly)
     - [XML -\> DB Records](#xml---db-records)
     - [DB Records -\> Two-Stage Similarity](#db-records---two-stage-similarity)
     - [Records -\> Rendered Relationships](#records---rendered-relationships)
-  - [In depth](#in-depth)
+  - [Less Briefly](#less-briefly)
     - [Parsing XML](#parsing-xml)
     - [Parsing Text](#parsing-text)
     - [Text Normalization](#text-normalization)
+      - [Candidate Selection](#candidate-selection)
+      - [Detailed Comparison](#detailed-comparison)
     - [Candidate Selection vs. Detailed Comparison](#candidate-selection-vs-detailed-comparison)
     - [Rendering](#rendering)
     - [Misc Type Defs](#misc-type-defs)
   - [Notes](#notes)
 
 
-## In brief
+## Briefly
 ### XML -> DB Records
   1. Given some parameters, get bill XML.  
   2. Parse bill XML, splitting into sections.
-  3. Leverage information encoded in nodes:  
-    a. Mask text content of nodes that are unlikely to be useful.   
-    b. Tag text content of nodes that are likely to be useful.
+  3. Leverage information encoded in XML schema:  
+    a. Mask text content of nodes that is unlikely to be useful.   
+    b. Tag text content of nodes that is likely to be useful.
   4. Leverage additional text information not captured in XML schema, mask and tag again.
-  5. Compute lookup vectors for each section, based on masked and tagged text and section header.
+  5. Compute lookup vectors for each section, based on masked and tagged header and content.
   6. Store data structure representing the parsed section alongside lookup vectors.
 ### DB Records -> Two-Stage Similarity
   1. Given section _S_, compute cosine similarities with all other sections.
@@ -37,27 +39,27 @@ Recovering relationships between pieces of legsilation in Congress. Like a more 
   1. Given a bill and section of interest.
   2. Retrieve related sections, sort by alignment scores.
   3. Focus one related section at a time, highlight shared local alignment regions, imputed across original text.
-## In depth
+## Less Briefly
 ### Parsing XML
 Given some parameters, fetch bill XML.  
 
 Every bill looks ~ like this:
    
-![alt text](resources/image.png)
+![alt text](resources/image-1.png)
 
-Where each block is an XML node of a particular hierarchical level, and tabs denote parent <-> child relationships.
+Where each block is an XML node of a particular hierarchical level, and tablature denotes parent <-> child relationships.
 
 Briefly, let's distinguish between to types[^1] of XML nodes:
 
 1. **Structure** nodes, which define the shape of the bill. E.g., title, section, subparagraph.
-2. **Content** nodes, which define the text content of structure nodes, alongside some metadata. E.g., header, enunm, external-xref.
+2. **Content** nodes, which define the text content of structure nodes, alongside some metadata. E.g., header, enum, external-xref.
 
   We use **structure** nodes to collate legislative text up to a desired unit of analysis in the larger hierarchy of the bill. For us, this is the section level.  
      
- ![alt text](resources/image-1.png)  
+ ![alt text](resources/image-2.png)  
   
 We use **content** nodes to prepare text for similarity analysis. In general, preparing text takes one of two routes:  
-  1. **Masking**, where the underyling text content is replaced with a special token. If text content is unlikely to be useful, or even misleading.
+  1. **Masking**, where the underyling text content is replaced with a special token. If text content is unlikely to be useful, or even misleading, we mask it.
   2. **Tagging**, where the underlying text content is wrapped with special tokens, indicating sequence start and end. If the text content is likely to be useful, or even more meaningful than other unmasked text, we tag it.
 
 Here's an example of a section from a bill, with some XML nodes pointed out:  
@@ -158,12 +160,15 @@ With a payload that stores this additional info, and associates the amendatory o
 Other candidates you might see appear in my codebase, particulary in some type definitions, are:
 - Tags: `ENTITY`, `KEY_TERM`, `DEADLINE`, `EXTERNAL_XREF`[^2]
 - Masks: `INTERNAL_XREF`, `DOLLAR_AMOUNT`, `DATE`
+
 ### Text Normalization
 After parsing, we're left with a large data payload that represents the parsed section. The two key fields for this discussion are:
 - `header`: The text content of the header of the section, with all masks and tags applied.
 - `content`: The text content of the section, other than the header, with all masks and tags applied.
 
-Before any actual similarity work can be done, we need to have normalized views of these two fields. Normalization pipeline is something like this:
+Before proceeding, we need to have normalized views of these two fields. We have two normalization pipelines, one to prepare inputs for the candidate selection stage, and one to prepare inputs for the detailed comparison stage. The pipelines are as follows:
+
+#### Candidate Selection
 1. Drop mask and tag special characters
 2. Push to lowercase
 3. Drop punctuation
@@ -172,8 +177,16 @@ Before any actual similarity work can be done, we need to have normalized views 
 6. Lemmatize
 7. Tokenize
 
+#### Detailed Comparison
+1. Drop mask special characters
+2. Push to lowercase
+3. Drop puncutation
+4. Normalize whitespace
+
+We store these normalized versions alongside the rest of the payload.
+
 ### Candidate Selection vs. Detailed Comparison
-At this point in the procedure, we have a database with a bunch of records representing parsed sections. If we want to compare any two sections-- to detect "similarity"-- we can go about it in two ways:  
+At this point in the procedure, we have a database with a bunch of records representing parsed sections, and normalized views of the section header and content. If we want to compare any two sections-- to detect "similarity"-- we can go about it in two ways:  
   
 1. **Sequence-based**, where the order of the words in the text matters. The traditional approach here (in political science literature, for recovering legislative text relationships) is to borrow an algorithm from bioinformatics, Smith-Waterman.[^3] This is often referred to as recovering "text reuse."
 
@@ -181,31 +194,34 @@ At this point in the procedure, we have a database with a bunch of records repre
 
 Other than their functional differences, there are two more important distinctions to make. 
 
-First, sequence-based algorithms become significantly more expensive to compute as the number of comparisons grows, and as the length of the text being compared grows. Second, sequence-based algorithms operate directly on the original text, while semantic-based algorithms project the text into a semantically meaningful space, and operate on the resulting vectors.  
+- First, sequence-based algorithms become significantly more expensive to compute as the number of comparisons grows, and as the length of the text being compared grows. 
+- Second, sequence-based algorithms operate directly on the original text, while semantic-based algorithms project the text into a semantically meaningful space, producing vectors that define a location in that space.
 
-The latter distinction is one of the reasons we want to use the sequence-based approach. Not only is there support in the literature, but the outputs are plainly interpretable. Practically, this means they can be used to render useful metadata that describes the relationship at the word-level, either for sanity checking, or for presentation to a user.[^4] If we could just compare all-to-all sections using a sequence-based approach, we probably would. But the former distinction--the costs of computing-- is why we can't.
+The latter distinction is one of the reasons we want to use the sequence-based approach at all. Not only is there support in the literature, but the outputs are plainly interpretable. Practically, this means they can be used to render useful metadata that describes the relationship at the word-level, either for sanity checking, or for presentation to a user.[^4] If we could just compare all-to-all sections using a sequence-based approach, we probably would. But the former distinction--the cost-- is why we can't.
 
-This breaks our procedure into two stages: using a semantic-based similarity to **select candidates** for comparison, then amongst those candidates, using a sequence-based approach to **compare in detail**.[^5]
+This breaks our procedure into two stages: using a semantic-based approach to **select candidates** for comparison, then amongst those candidates, using a sequence-based approach to **compare in detail**.[^5]
 
 Okay, with this intuition in hand, let's talk about what we're actually doing for each of these stages.
 
-For candidate selection, we're going to use a pre-trained model to compute lookup vectors for the normalized version of each section's content and header. We'll store those vectors in the DB, alongside the rest of the payload. We can cheaply compute the cosine similarity between any two sections by with these vectors, and use this to select the _n_ most similar candidates.
+For candidate selection, we're going to use a pre-trained model to compute lookup vectors for the normalized version of each section's content and header. We'll store those vectors in the DB, alongside the rest of the payload. We can cheaply compute the cosine similarity between any two sections with these vectors, and use this to select the _n_ most semantically similar candidates.
 
-For detailed comparison, we're going to use a special implementation of the Smith-Waterman algorithm. It generally follows the approach detailed in Wilkerson, 2015, but has two special modifications: (1) Its scoring heuristic is dynamically adjusted as it moves through the text to account for the presence of tagged regions, and (2) it produces a payload of positional data that can be used to render the aligned region between two sections in the original text, even though the alignment is computed over a normalized version of the text.  
+For detailed comparison, we're going to use a special implementation of the Smith-Waterman algorithm. It generally follows the approach detailed in Wilkerson, 2015, but has two special modifications:
+- Its scoring heuristic is dynamically adjusted as it moves through the text to account for the presence of tagged regions. You might think here something like, if two sections have a lot of quoted text in common, they're going to be "rewarded," and those cells will become more likely to constitute part of the highest scoring path.
+- It produces a payload of positional data that can be used to render the aligned region between two sections in the original text, even though the alignment is computed over a normalized version of the text.  
 
-These alignment outputs are stored in the DB as a link between the target section and _n_ related sections.
+These alignment outputs are stored in the DB, linked between the target section and the _n_ related sections.
 
 > _Note_: I recognize that sequence-based algorithms implicitly assume that small, even one-word changes, in otherwise highly similar regions of text are not singularly meaningful. And I recognize that this isn't the case in our domain, that small changes in language can produce radical changes in the function of law. But this approach also gives us traction on these kinds of changes, even if the approach as-is doesn't necessarily account for them in the scoring scheme, and doesn't plan to point them out.
 
 ### Rendering 
 > *Note*: Section is a work in progress.
-> Just going to post some scerenshots from papers here, I think they're decent starting points.  
+> Just going to post some screenshots from papers here, I think they're decent starting points.  You could imagine spending a week or so just sprucing this kind of thing up, making an opionated decision about limiting the field of view, using best-practices for colors, spacing, and font w/r/t readability.
 > 
 > Linder et al., 2020, p. 13:  
-> ![alt text](image.png)
+> ![alt text](resources/image-5.png)
 >
 > Wilkerson et al., 2015, p. 14:  
-> ![alt text](image-1.png)
+> ![alt text](resources/image-4.png)
 
 ### Misc Type Defs
 ```ts
@@ -284,6 +300,6 @@ type LegalDocAttributeType =
 ## Notes
 [^1]: My terminology, not actually part of the XML schema. I.e., there is no attribute on these nodes that indicates they are part of the structure family, as opposed to the content family.    
 [^2]: Note that while `<EXTERNAL-XREF>` nodes are osetinsbly captured in the XML schema, that isn't exhaustive. For instance, the section section of XML I walked through in the "Parsing XML" section doesn't wrap the text specifying the target of its amendatory instruction, "Section 402(b)(k)(1)(B) of title 37, United States Code," in an `<EXTERNAL-XREF>` node.  
-[^3]: See, e.g, [Wilkerson et al., 2015](resources/Wilkerson_2015.pdf), [Linder et al., 2020](resources/Linder_2020.pdf).  
+[^3]: See, e.g, [Wilkerson et al., 2015](resources/Wilkerson_2015.pdf), [Linder et al., 2020](resources/Linder_2020.pdf). For a good visual depiction of the Smith-Waterman algorithm, see Linder, 2020,  p. 41.  
 [^4]: While it is true that sequence-based approaches are almost always more interpretable, this isn't an either-or situation. There are ways to recover data out of semantic-based approaches. But quite frankly I only know about them in theory, and have never done any implementation. Alternatively, we could just say recovery and interpretability of the data isn't important to us.  
-[^5]: This is a very common approach in IR, and both papers cited above use it. In Wilkerson, 2015, they only compute alignment scores between sections that share 5 10-grams (p. 41). In Linder, 2020, they use an off-the-shelf solution, ElasticSearch's "more like this" query option (pp. 43-44).
+[^5]: This is a very common approach in IR, and both papers cited above use it. In Wilkerson, 2015, they only compute alignment scores between sections that share 5 10-grams (p. 41). In Linder, 2020, they use an off-the-shelf solution, ElasticSearch's "more like this" query option (pp. 43-44). The intuition here is simple: sections that are semantically similar are the most likely to have high alignment scores.
