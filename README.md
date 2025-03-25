@@ -1,12 +1,3 @@
-<style>
-    .red-text {
-    color: red;
-  }
-  .green-text {
-    color: green;
-  }
-</style>
-
 # LegisMatch
 
 Recovering relationships between pieces of legsilation in Congress. Like a more sophisticated version of the "related bills" view on congress.gov, where the text contributing to the relationship is recoverable.
@@ -77,13 +68,13 @@ Here's an example of a section from a bill, with some XML nodes pointed out:
 > (b) Functions notwithstanding any other provision of law...  
   
 We get:
-> <span class="green-text">MASK_ENUM</span> Functions notwithstanding any other provision of law...
+> <span style="color:green">MASK_ENUM</span> Functions notwithstanding any other provision of law...
 
 `<EXTERNAL-XREF>` nodes are tagged, meaning instead of
 > ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 (22 U.S.C. 2346 et seq.).
   
 We get:
-> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 <span class="red-text">&lt;EXTERNAL-XREF&gt;</span>22 U.S.C. 2346 et seq.<span class="red-text">&lt;/EXTERNAL-XREF&gt;</span>.
+> ...including amounts authorized to carry out chapter 4 of part II of the Foreign Assistance Act of 1961 <span style="color:red">&lt;EXTERNAL-XREF&gt;</span>22 U.S.C. 2346 et seq.<span style="color:red">&lt;/EXTERNAL-XREF&gt;</span>.
 
 In both cases, we preseve a data structure that allows us to (1) reverse any given mask or tagging decision, and (2) compose different masking and tagging pipelines. For the above transformations, it might look something like this:
 
@@ -119,7 +110,7 @@ After we get all we can out of the XML nodes, we turn to the raw text content of
 
 Our current pipeline, which only leverages XML, returns:
 
-> Section 402(b)(k)(1)(B) of title 37, United States Code, is amended-- <span class="green-text">MASK_ENUM</span> by striking <span class="red-text">&lt;QUOTE&gt;</span>in<span class="red-text">&lt;/QUOTE&gt;</span> and all that follows through <span class="red-text">&lt;QUOTE&gt;</span>portion of<span class="red-text">&lt;/QUOTE&gt;</span>; and <span class="green-text">MASK_ENUM</span> by striking <span class="red-text">&lt;QUOTE&gt;</span>that the Secretary concerned elects to exclude<span class="red-text">&lt;/QUOTE&gt;</span> and inserting <span class="red-text">&lt;QUOTE&gt;</span>paid to such member<span class="red-text">&lt;/QUOTE&gt;</span>.
+> Section 402(b)(k)(1)(B) of title 37, United States Code, is amended-- <span style="color:green">MASK_ENUM</span> by striking <span style="color:red">&lt;QUOTE&gt;</span>in<span style="color:red">&lt;/QUOTE&gt;</span> and all that follows through <span style="color:red">&lt;QUOTE&gt;</span>portion of<span style="color:red">&lt;/QUOTE&gt;</span>; and <span style="color:green">MASK_ENUM</span> by striking <span style="color:red">&lt;QUOTE&gt;</span>that the Secretary concerned elects to exclude<span style="color:red">&lt;/QUOTE&gt;</span> and inserting <span style="color:red">&lt;QUOTE&gt;</span>paid to such member<span style="color:red">&lt;/QUOTE&gt;</span>.
 With this associated payload:
 ```json
 {
@@ -138,7 +129,7 @@ With this associated payload:
 
 But we might prefer a return value that captures the operation associated with amendatory instruction, like this:
 
-> Section 402(b)(k)(1)(B) of title 37, United States Code, is amended-- <span class="green-text">MASK_ENUM</span> by <span class="red-text">&lt;AMENDMENT_OP&gt;</span>striking<span class="red-text">&lt;/AMENDMENT_OP&gt;</span> <span class="red-text">&lt;/QUOTE&gt;</span>in<span class="red-text">&lt;QUOTE&gt;</span> and all that follows through <span class="red-text">&lt;QUOTE&gt;</span>portion of<span class="red-text">&lt;/QUOTE&gt;</span>; and by <span class="red-text">&lt;AMENDMENT_OP&gt;</span>striking<span class="red-text">&lt;/AMENDMENT_OP&gt;</span> <span class="red-text">&lt;QUOTE&gt;</span>that the Secretary concerned elects to exclude<span class="red-text">&lt;/QUOTE&gt;</span> and <span class="red-text">&lt;AMENDMENT_OP&gt;</span>inserting<span class="red-text">&lt;/AMENDMENT_OP&gt;</span> <span class="red-text">&lt;QUOTE&gt;</span>paid to such member<span class="red-text">&lt;/QUOTE&gt;</span>.
+> Section 402(b)(k)(1)(B) of title 37, United States Code, is amended-- <span style="color:green">MASK_ENUM</span> by <span style="color:red">&lt;AMENDMENT_OP&gt;</span>striking<span style="color:red">&lt;/AMENDMENT_OP&gt;</span> <span style="color:red">&lt;/QUOTE&gt;</span>in<span style="color:red">&lt;QUOTE&gt;</span> and all that follows through <span style="color:red">&lt;QUOTE&gt;</span>portion of<span style="color:red">&lt;/QUOTE&gt;</span>; and by <span style="color:red">&lt;AMENDMENT_OP&gt;</span>striking<span style="color:red">&lt;/AMENDMENT_OP&gt;</span> <span style="color:red">&lt;QUOTE&gt;</span>that the Secretary concerned elects to exclude<span style="color:red">&lt;/QUOTE&gt;</span> and <span style="color:red">&lt;AMENDMENT_OP&gt;</span>inserting<span style="color:red">&lt;/AMENDMENT_OP&gt;</span> <span style="color:red">&lt;QUOTE&gt;</span>paid to such member<span style="color:red">&lt;/QUOTE&gt;</span>.
 
 With a payload that stores this additional info, and associates the amendatory operation with a quote node alongside it in the tags field.
 
