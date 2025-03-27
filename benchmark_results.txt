@@ -1,0 +1,69 @@
+Found 228 files in data dir.
+Bechmarking parser...
+Num runs: 100
+Num sections: 1829
+section_count: 1:, instances: 44
+section_count: 2:, instances: 114
+section_count: 3:, instances: 27
+section_count: 4:, instances: 17
+section_count: 5:, instances: 6
+section_count: 6:, instances: 4
+section_count: 8:, instances: 2
+section_count: 9:, instances: 3
+section_count: 10:, instances: 1
+section_count: 13:, instances: 1
+section_count: 14:, instances: 1
+section_count: 15:, instances: 1
+section_count: 16:, instances: 4
+section_count: 23:, instances: 1
+section_count: 42:, instances: 1
+section_count: 1130:, instances: 1
+Benchmarking custom sw: parallel random draw
+Run 1: 0.0376s
+len1: 31, len2: 927
+Run 2: 0.0143s
+len1: 51, len2: 275
+Run 3: 0.0349s
+len1: 818, len2: 15
+Run 4: 0.0082s
+len1: 208, len2: 18
+Run 5: 0.0159s
+len1: 13, len2: 3293
+Run 6: 0.0914s
+len1: 274, len2: 95
+Run 7: 0.0346s
+len1: 848, len2: 225
+Run 8: 0.0689s
+len1: 23, len2: 119
+Run 9: 0.1147s
+len1: 40, len2: 282
+Run 10: 0.4983s
+len1: 336, len2: 14
+Benchmarking custom sw: parallel forced max length target
+Longest section length: 13475
+len1: 84, len2: 13475
+Task completed: 3.7495s
+len1: 91, len2: 13475
+Task completed: 4.0338s
+len1: 130, len2: 13475
+Task completed: 5.9085s
+len1: 194, len2: 13475
+Task completed: 8.8497s
+len1: 252, len2: 13475
+Task completed: 11.2634s
+len1: 254, len2: 13475
+Task completed: 11.3678s
+len1: 265, len2: 13475
+Task completed: 11.1338s
+len1: 402, len2: 13475
+Task completed: 17.4655s
+len1: 441, len2: 13475
+Task completed: 17.7565s
+len1: 1899, len2: 13475
+Task completed: 72.2788s
+Avg: 16.3807s
+
+Min: 3.7495s
+
+Max: 72.2788s
+
