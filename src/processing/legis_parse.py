@@ -226,9 +226,9 @@ def handle_enum(node: LXMLElement, state: ParsingState, masks: List[MaskEntry], 
 
         # Sometimes, enums will be empty nodes.
         # TODO: I'm still investigating why this happens. For an example. see 118hr2670enr Sec. 1273
-        # For now, I'm going to supply a palceholder value for empty enums, such that at least something is passed along
+        # For now, I'm going to supply a placeholder value for empty enums, such that at least something is passed along
         # to the masks array for a given section.
-        if node.text == '':
+        if not node.text:
             placeholder = "EMPTY_ENUM_NODE"
 
             masks.append(
